@@ -137,7 +137,10 @@ def print_formatted_talks(
             current_data_point.append(talk["talk_description"])
         # TODO think about coloring every second row (needs theming and config tho)
         data.append(current_data_point)
-    print(tt.to_string(data, header=header))
+    try:
+        print(tt.to_string(data, header=header))
+    except ValueError:
+        print("No talks in this period.")
 
 
 @click.command()
