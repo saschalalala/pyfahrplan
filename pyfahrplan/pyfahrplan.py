@@ -5,7 +5,11 @@ import sys
 
 import click
 import requests
+import requests_cache
 import termtables as tt
+
+
+requests_cache.install_cache("fahrplan_cache")
 
 
 class Colour:

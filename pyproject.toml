@@ -9,6 +9,7 @@ python = "^3.6"
 click = "^7.0"
 requests = "^2.22.0"
 termtables = "^0.1.1"
+requests_cache = "^0.5.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^4.6"
