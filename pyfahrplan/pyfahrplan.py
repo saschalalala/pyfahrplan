@@ -26,54 +26,65 @@ class Colour:
 class Fahrplan:
     def __init__(self):
         self.urls = [
-            "https://fahrplan.events.ccc.de/congress/2019/Fahrplan/schedule.json",
-            "https://fahrplan.chaos-west.de/36c3/schedule/export/schedule.json",
+            f"https://fahrplan.events.ccc.de/congress/{x}/Fahrplan/schedule.json"
+            for x in range(2013, 2020)
         ]
+        self.urls.append(
+            "https://fahrplan.chaos-west.de/36c3/schedule/export/schedule.json"
+        )
         self.fahrplan = []
         self.flat_plan = []
         self._get_fahrplan()
         self.flatten_fahrplan()
 
     def _get_fahrplan(self):
-        try:
-            self.fahrplan = []
-            for url in self.urls:
-                self.fahrplan.extend(
-                    requests.get(url).json()["schedule"]["conference"]["days"]
+        self.fahrplan = []
+        for url in self.urls:
+            try:
+                self.fahrplan.append(requests.get(url).json()["schedule"])
+            except JSONDecodeError as e:
+                print(
+                    f"{Colour.FAIL}Problem downloading the Fahrplan {url}. Check your internet connection.{Colour.ENDC}"
                 )
-        except JSONDecodeError as e:
+                print(e)
+        if not self.fahrplan:
             print(
-                f"{Colour.FAIL}Problem downloading the Fahrplan. Check your internet connection.{Colour.ENDC}"
+                f"{Colour.FAIL}Fahrplan empty. Something is wrong with your urls. Exiting.{Colour.ENDC}"
             )
-            print(e)
             sys.exit()
 
     def flatten_fahrplan(self):
         self.flat_plan = []
-        for day in self.fahrplan:
-            for room_name, room in day["rooms"].items():
-                for talk in room:
-                    self.flat_plan.append(
-                        {
-                            "day": day["index"],
-                            "room_name": room_name,
-                            "talk_title": talk["title"],
-                            "talk_guid": talk["guid"],
-                            "talk_id": talk["id"],
-                            "talk_start": talk["start"],
-                            "talk_duration": talk["duration"],
-                            "talk_description": ""
-                            if talk["description"] is None
-                            else talk["description"][:50],
-                            "talk_abstract": ""
-                            if talk["abstract"] is None
-                            else talk["abstract"][:50],
-                            "track": "" if talk["track"] is None else talk["track"],
-                            "persons": [
-                                person["public_name"] for person in talk["persons"]
-                            ],
-                        }
-                    )
+        for schedule in self.fahrplan:
+            for day in schedule["conference"]["days"]:
+                for room_name, room in day["rooms"].items():
+                    for talk in room:
+                        self.flat_plan.append(
+                            {
+                                "conference_title": schedule["conference"]["title"],
+                                "day": day["index"],
+                                "room_name": room_name,
+                                "talk_title": talk["title"],
+                                "talk_guid": talk.get("guid"),
+                                "talk_id": talk["id"],
+                                "talk_start": talk["start"],
+                                "talk_duration": talk["duration"],
+                                "talk_description": ""
+                                if talk["description"] is None
+                                else talk["description"][:50],
+                                "talk_abstract": ""
+                                if talk["abstract"] is None
+                                else talk["abstract"][:50],
+                                "track": "" if talk["track"] is None else talk["track"],
+                                "persons": [
+                                    person.get(
+                                        "public_name",
+                                        person.get("full_public_name", ""),
+                                    )
+                                    for person in talk["persons"]
+                                ],
+                            }
+                        )
 
 
 def speaker_in_talk(name: str, persons: list) -> bool:
@@ -119,7 +130,16 @@ def filter_talk(
 def print_formatted_talks(
     talks: list, show_abstract: bool, show_description: bool
 ) -> None:
-    header = ["Day", "Time", "Duration", "Room", "Title", "Speaker(s)", "Track"]
+    header = [
+        "Conference",
+        "Day",
+        "Time",
+        "Duration",
+        "Room",
+        "Title",
+        "Speaker(s)",
+        "Track",
+    ]
     if show_abstract:
         header.append("Abstract")
     if show_description:
@@ -127,6 +147,7 @@ def print_formatted_talks(
     data = []
     for index, talk in enumerate(talks):
         current_data_point = [
+            talk["conference_title"],
             talk["day"],
             talk["talk_start"],
             talk["talk_duration"],
