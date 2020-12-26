@@ -1,6 +1,8 @@
 from dateutil.parser import parse
 import datetime as dt
 from json.decoder import JSONDecodeError
+import os
+from pathlib import Path
 import sys
 
 import click
@@ -8,9 +10,9 @@ import requests
 import requests_cache
 from tabulate import tabulate, _table_formats
 
-
-requests_cache.install_cache("fahrplan_cache")
-
+script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
+cache_file = Path("fahrplan_cache")
+requests_cache.install_cache(str(script_dir / cache_file))
 
 class Colour:
     HEADER = "\033[95m"
