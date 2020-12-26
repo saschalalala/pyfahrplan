@@ -105,12 +105,6 @@ class Fahrplan:
                         self.flat_plans.append(current_talk)
 
 
-def is_speaker_in_talk(name: str, persons: list) -> bool:
-    name = name.lower()
-    persons = [x.lower() for x in persons]
-    return any([person for person in persons if name in person])
-
-
 def is_talk_in_timerange(talk: dict, start: str) -> bool:
     start_time = parse(start)
     talk_start = parse(talk["talk_start"])
@@ -136,7 +130,7 @@ def filter_talk(
     """
     Some simple filter rules (one rule per filter criteria)
     """
-    speaker_matches = speaker is None or is_speaker_in_talk(speaker, talk["speakers"])
+    speaker_matches = speaker is None or speaker.lower() in talk["speakers"].lower()
     title_matches = title is None or title.lower() in talk["title"].lower()
     track_matches = track is None or track.lower() in talk["track"].lower()
     day_matches = day == 0 or day == talk["day"]
