@@ -32,7 +32,7 @@ class Fahrplan:
             f"https://raw.githubusercontent.com/voc/{x}C3_schedule/master/everything.schedule.json"
             for x in range(32, 37)
         ]
-        self.urls.append("https://fahrplan.events.ccc.de/rc3/2020/Fahrplan/schedule.json")
+        self.urls.append("https://data.c3voc.de/rC3/everything.schedule.json")
         self.fahrplans = []
         self.flat_plans = []
         self.column_width = column_width
