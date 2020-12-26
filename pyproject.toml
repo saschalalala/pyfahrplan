@@ -3,6 +3,10 @@ name = "pyfahrplan"
 version = "1.0.0"
 description = "A CCC Fahrplan CLI"
 authors = ["Sascha <saschalalala@github.com>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/saschalalala/pyfahrplan"
+keywords = "cli, ccc, calendar, console"
 
 [tool.poetry.dependencies]
 python = "^3.6"
