@@ -31,5 +31,6 @@ Options:
                                   Choose a tableformat that is supported by
                                   python-tabular
   --column-width INTEGER          Set the max width of the wide columns (which is everything string based)
+  --update-cache                  Delete the cache file and redownload all fahrplans
   --help                          Show this message and exit.
 ```

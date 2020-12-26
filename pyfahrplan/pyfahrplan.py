@@ -14,6 +14,7 @@ script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
 cache_file = Path("fahrplan_cache")
 requests_cache.install_cache(str(script_dir / cache_file))
 
+
 class Colour:
     HEADER = "\033[95m"
     OKBLUE = "\033[94m"
@@ -26,7 +27,7 @@ class Colour:
 
 
 class Fahrplan:
-    def __init__(self, column_width):
+    def __init__(self, column_width, update_cache):
         self.urls = [
             f"https://raw.githubusercontent.com/voc/{x}C3_schedule/master/everything.schedule.json"
             for x in range(32, 37)
@@ -35,10 +36,13 @@ class Fahrplan:
         self.fahrplans = []
         self.flat_plans = []
         self.column_width = column_width
+        self.update_cache = update_cache
         self._get_fahrplans()
         self.flatten_fahrplans()
 
     def _get_fahrplans(self):
+        if self.update_cache:
+            requests_cache.clear()
         self.fahrplans = []
         for url in self.urls:
             try:
@@ -257,7 +261,15 @@ def print_formatted_talks(
     type=click.Choice(_table_formats),
 )
 @click.option(
-    "--column-width", default=60, help="Set the max width of the wide columns (which is everything string based)"
+    "--column-width",
+    default=60,
+    help="Set the max width of the wide columns (which is everything string based)"
+)
+@click.option(
+    "--update-cache",
+    default=False,
+    help="Delete the cache file and redownload all fahrplans",
+    is_flag="True",
 )
 def cli(
     speaker,
@@ -273,10 +285,11 @@ def cli(
     reverse,
     tablefmt,
     column_width,
+    update_cache
 ):
     matching_talks = [
         x
-        for x in Fahrplan(column_width=column_width).flat_plans
+        for x in Fahrplan(column_width=column_width, update_cache=update_cache).flat_plans
         if filter_talk(x, speaker, title, track, day, start, room, conference)
     ]
     print_formatted_talks(
