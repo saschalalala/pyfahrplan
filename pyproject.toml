@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyfahrplan"
-version = "1.0.3"
+version = "1.0.4"
 description = "A CCC Fahrplan CLI"
 authors = ["Sascha <saschalalala@github.com>"]
 license = "MIT"
@@ -9,7 +9,7 @@ repository = "https://github.com/saschalalala/pyfahrplan"
 keywords = ["cli", "ccc", "calendar", "console"]
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = "^3.8"
 click = "^7.0"
 requests = "^2.22.0"
 requests_cache = "^0.5.2"
