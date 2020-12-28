@@ -27,7 +27,7 @@ class Colour:
 
 
 class Fahrplan:
-    def __init__(self, column_width, update_cache):
+    def __init__(self, update_cache):
         self.urls = [
             f"https://raw.githubusercontent.com/voc/{x}C3_schedule/master/everything.schedule.json"
             for x in range(32, 37)
@@ -35,7 +35,6 @@ class Fahrplan:
         self.urls.append("https://data.c3voc.de/rC3/everything.schedule.json")
         self.fahrplans = []
         self.flat_plans = []
-        self.column_width = column_width
         self.update_cache = update_cache
         self._get_fahrplans()
         self.flatten_fahrplans()
@@ -57,17 +56,6 @@ class Fahrplan:
                 f"{Colour.FAIL}Fahrplan empty. Something is wrong with your urls. Exiting.{Colour.ENDC}"  # noqa: E501
             )
             sys.exit()
-
-    def format_row(self, row_content):
-        for key in row_content.keys():
-            cell_value = row_content[key]
-            if type(cell_value) == str and (value_length := len(cell_value)) >= self.column_width:
-                row_content[key] = " \n".join(
-                    # fmt: off
-                    cell_value[n:n + self.column_width]
-                    # fmt: on
-                    for n in range(0, value_length, self.column_width)
-                )
 
     def flatten_fahrplans(self):
         self.flat_plans = []
@@ -101,7 +89,6 @@ class Fahrplan:
                                 ]
                             ),
                         }
-                        self.format_row(current_talk)
                         self.flat_plans.append(current_talk)
 
 
@@ -122,6 +109,19 @@ def is_talk_in_past(talk: dict, now: dt.datetime) -> bool:
     duration = parse(talk["talk_duration"])
     end = talk_start_datetime + dt.timedelta(hours=duration.hour, minutes=duration.minute)
     return now > end
+
+
+def format_row(row, column_width):
+    def format_cell(cell, column_width):
+        if type(cell) == str and (value_length := len(cell)) >= column_width:
+            cell = " \n".join(
+                # fmt: off
+                cell[n:n + column_width]
+                # fmt: on
+                for n in range(0, value_length, column_width)
+            )
+        return cell
+    return [format_cell(cell, column_width) for cell in row]
 
 
 def filter_talk(
@@ -183,6 +183,7 @@ def print_formatted_talks(
     sort_by: str,
     reverse: bool,
     tablefmt: str,
+    column_width: int
 ) -> None:
     header = [
         "Conference",
@@ -211,14 +212,14 @@ def print_formatted_talks(
         header.append("Description")
     data = []
 
-    for index, talk in enumerate(talks):
-        current_data_point = [talk[field] for field in fields]
+    for talk in talks:
+        current_data_point = [talk.get(field, "") for field in fields]
         if show_abstract:
             current_data_point.append(talk["talk_abstract"])
         if show_description:
             current_data_point.append(talk["talk_description"])
         # TODO think about coloring every second row (needs theming and config tho)
-        data.append(current_data_point)
+        data.append(format_row(current_data_point, column_width))
     try:
         if sort_by is not None:
             data.sort(key=lambda x: x[fields.index(sort_by)])
@@ -316,7 +317,7 @@ def cli(
     now = dt.datetime.now().astimezone()
     matching_talks = [
         x
-        for x in Fahrplan(column_width=column_width, update_cache=update_cache).flat_plans
+        for x in Fahrplan(update_cache=update_cache).flat_plans
         if filter_talk(x, speaker, title, track, day, start, room, conference, no_past, now)
     ]
     print_formatted_talks(
@@ -326,6 +327,7 @@ def cli(
         sort_by=sort,
         reverse=reverse,
         tablefmt=tablefmt,
+        column_width=column_width
     )
 
 
