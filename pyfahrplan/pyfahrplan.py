@@ -14,6 +14,23 @@ script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
 cache_file = Path("fahrplan_cache")
 requests_cache.install_cache(str(script_dir / cache_file))
 
+cli_defaults = {
+    "speaker": None,
+    "title": None,
+    "track": None,
+    "day": -1,  # 0 seems to be a valid day value in some c3s
+    "start": None,
+    "room": "all",
+    "conference": "rc3",
+    "show_abstract": False,
+    "show_description": False,
+    "sort": None,
+    "tablefmt": "fancy_grid",
+    "update_cache": False,
+    "no_past": False,
+    "column_width": 60,
+}
+
 
 class Colour:
     HEADER = "\033[95m"
@@ -27,7 +44,7 @@ class Colour:
 
 
 class Fahrplan:
-    def __init__(self, update_cache):
+    def __init__(self, update_cache: bool = cli_defaults['update_cache']):
         self.urls = [
             f"https://raw.githubusercontent.com/voc/{x}C3_schedule/master/everything.schedule.json"
             for x in range(32, 37)
@@ -121,57 +138,49 @@ def format_row(row, column_width):
                 for n in range(0, value_length, column_width)
             )
         return cell
+
     return [format_cell(cell, column_width) for cell in row]
 
 
 def filter_talk(
-    talk: dict,
-    speaker: str,
-    title: str,
-    track: str,
-    day: int,
-    start: str,
-    room: str,
-    conference: str,
-    filter_past: bool,
-    now: dt.datetime,
+    talk: dict = {},
+    speaker: str = cli_defaults["speaker"],
+    title: str = cli_defaults["title"],
+    track: str = cli_defaults["track"],
+    day: int = cli_defaults["day"],
+    start: str = cli_defaults["start"],
+    room: str = cli_defaults["room"],
+    conference: str = cli_defaults["conference"],
+    filter_past: bool = cli_defaults["no_past"],
+    now: dt.datetime = dt.datetime.now().astimezone(),  # evaluated at function definition time, this is fine
 ) -> bool:
     """
     Some simple filter rules as functions
     """
 
-    def speaker_matches():
-        return speaker is None or speaker.lower() in talk["speakers"].lower()
-
-    def title_matches():
-        return title is None or title.lower() in talk["title"].lower()
-
-    def track_matches():
-        return track is None or track.lower() in talk["track"].lower()
+    def generic_in_match(filter_value, filter_key, talk_attribute):
+        return (
+            filter_value == cli_defaults[filter_key]
+            or filter_value.lower() in talk[talk_attribute].lower()
+        )
 
     def day_matches():
-        return day == 0 or day == talk["day"]
+        return day == -1 or day == talk["day"]
 
     def start_matches():
         return start is None or is_talk_in_timerange(talk, start)
-
-    def room_matches():
-        return room == "all" or room.lower() in talk["room"].lower()
-
-    def conference_matches():
-        return conference == "all" or conference == talk["conference_acronym"]
 
     def filtered_as_past():
         return filter_past and is_talk_in_past(talk, now)
 
     return (
-        speaker_matches()
-        and title_matches()
-        and track_matches()
+        generic_in_match(speaker, "speaker", "speakers")
+        and generic_in_match(title, "title", "title")
+        and generic_in_match(track, "track", "track")
         and day_matches()
         and start_matches()
-        and room_matches()
-        and conference_matches()
+        and generic_in_match(room, "room", "room")
+        and generic_in_match(conference, "conference", "conference_acronym")
         and not filtered_as_past()
     )
 
@@ -183,7 +192,7 @@ def print_formatted_talks(
     sort_by: str,
     reverse: bool,
     tablefmt: str,
-    column_width: int
+    column_width: int,
 ) -> None:
     header = [
         "Conference",
@@ -235,67 +244,80 @@ def print_formatted_talks(
 @click.option(
     "--title",
     "-t",
-    default=None,
+    default=cli_defaults["title"],
     help="A part of the title of the talk(s) you want to search.",
 )
 @click.option(
     "--track",
     "-tr",
-    default=None,
+    default=cli_defaults["track"],
     help="A part of the track description you want to search.",
 )
-@click.option("--day", "-d", default=0, help="Day you want to filter [1-4] or 0 for all days.")
-@click.option("--start", "-st", default=None, help="Start time of the talk(s) you want to search.")
+@click.option(
+    "--day",
+    "-d",
+    default=cli_defaults["day"],
+    help="Day you want to filter [1-4] or 0 for all days.",
+)
+@click.option(
+    "--start",
+    "-st",
+    default=cli_defaults["start"],
+    help="Start time of the talk(s) you want to search.",
+)
 @click.option(
     "--room",
     "-r",
-    default="all",
+    default=cli_defaults["room"],
     help="Name of the room you want to filter [room names] or 'all' for all rooms",
 )
 @click.option(
     "--conference",
     "-c",
-    default="rc3",
+    default=cli_defaults["conference"],
     help="CCC acronym (32c3 to 36c3 plus rc3) that you want to filter on, all for all conferences",
 )
 @click.option(
     "--show-abstract",
-    default=False,
+    default=cli_defaults["show_abstract"],
     help="Shows abstracts, default False, experimental",
     is_flag=True,
 )
 @click.option(
     "--show-description",
-    default=False,
+    default=cli_defaults["show_description"],
     help="Shows descriptions, default False, experimental",
     is_flag=True,
 )
 @click.option(
     "--sort",
-    default=None,
+    default=cli_defaults["sort"],
     type=click.Choice(["day", "speakers", "title", "track", "room", "talk_start"]),
     help="Sort by day|speakers|title|track|room|talk_start",
 )
 @click.option("--reverse", default=False, help="Reverse results", is_flag=True)
 @click.option(
     "--tablefmt",
-    default="fancy_grid",
+    default=cli_defaults["tablefmt"],
     help="Choose a tableformat that is supported by python-tabular",
     type=click.Choice(_table_formats),
 )
 @click.option(
     "--column-width",
-    default=60,
+    default=cli_defaults["column_width"],
     help="Set the max width of the wide columns (which is everything string based)",
 )
 @click.option(
     "--update-cache",
-    default=False,
+    default=cli_defaults["update_cache"],
     help="Delete the cache file and redownload all fahrplans",
     is_flag=True,
 )
 @click.option(
-    "--no-past", default=False, help="Filter out talks that lay in the past", is_flag=True
+    "--no-past",
+    default=cli_defaults["no_past"],
+    help="Filter out talks that lay in the past",
+    is_flag=True,
 )
 def cli(
     speaker,
@@ -327,7 +349,7 @@ def cli(
         sort_by=sort,
         reverse=reverse,
         tablefmt=tablefmt,
-        column_width=column_width
+        column_width=column_width,
     )
 
 

@@ -34,3 +34,15 @@ Options:
   --update-cache                  Delete the cache file and redownload all fahrplans
   --help                          Show this message and exit.
 ```
+
+## Development
+
+Clone this repository, then create a virtualenv, e.g., inside the repository:
+
+```bash
+python3 -m venv .venv
+pip install poetry  # if you don't have it globally installed
+poetry install  # install all dependencies, including dev dependencies
+poe test  # to run the tests
+pytest --cov=pyfahrplan tests/ && coverage html  # to create a coverage report
+```
