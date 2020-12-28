@@ -21,7 +21,7 @@ cli_defaults = {
     "day": -1,  # 0 seems to be a valid day value in some c3s
     "start": None,
     "room": "all",
-    "conference": "rc3",
+    "conference": None,
     "show_abstract": False,
     "show_description": False,
     "sort": None,
@@ -174,13 +174,13 @@ def filter_talk(
         return filter_past and is_talk_in_past(talk, now)
 
     return (
-        generic_in_match(speaker, "speaker", "speakers")
+        generic_in_match(conference, "conference", "conference_acronym")
+        and generic_in_match(speaker, "speaker", "speakers")
         and generic_in_match(title, "title", "title")
         and generic_in_match(track, "track", "track")
         and day_matches()
         and start_matches()
         and generic_in_match(room, "room", "room")
-        and generic_in_match(conference, "conference", "conference_acronym")
         and not filtered_as_past()
     )
 
@@ -274,7 +274,7 @@ def print_formatted_talks(
 @click.option(
     "--conference",
     "-c",
-    default=cli_defaults["conference"],
+    default="rc3",
     help="CCC acronym (32c3 to 36c3 plus rc3) that you want to filter on, all for all conferences",
 )
 @click.option(
