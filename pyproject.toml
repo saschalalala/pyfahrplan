@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyfahrplan"
-version = "1.0.6"
+version = "1.0.7"
 description = "A CCC Fahrplan CLI"
 authors = ["Sascha <saschalalala@github.com>"]
 license = "MIT"
