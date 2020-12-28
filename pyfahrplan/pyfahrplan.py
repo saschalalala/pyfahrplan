@@ -97,7 +97,7 @@ class Fahrplan:
                                         "public_name",
                                         person.get("full_public_name", ""),
                                     )
-                                    for person in talk["persons"]
+                                    for person in talk.get("persons", [])
                                 ]
                             ),
                         }
