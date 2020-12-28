@@ -84,6 +84,7 @@ class Fahrplan:
                             "talk_guid": talk.get("guid"),
                             "talk_id": talk["id"],
                             "talk_start": talk["start"],
+                            "talk_date": talk["date"],
                             "talk_duration": talk["duration"],
                             "talk_description": ""
                             if talk["description"] is None
@@ -101,7 +102,6 @@ class Fahrplan:
                             ),
                         }
                         self.format_row(current_talk)
-                        # print(current_talk)
                         self.flat_plans.append(current_talk)
 
 
@@ -117,6 +117,13 @@ def is_talk_in_timerange(talk: dict, start: str) -> bool:
     return talk_in_timerange or talk_starts_in_current_hour
 
 
+def is_talk_in_past(talk: dict, now: dt.datetime) -> bool:
+    talk_start_datetime = parse(talk["talk_date"])
+    duration = parse(talk["talk_duration"])
+    end = talk_start_datetime + dt.timedelta(hours=duration.hour, minutes=duration.minute)
+    return now > end
+
+
 def filter_talk(
     talk: dict,
     speaker: str,
@@ -126,25 +133,46 @@ def filter_talk(
     start: str,
     room: str,
     conference: str,
+    filter_past: bool,
+    now: dt.datetime,
 ) -> bool:
     """
-    Some simple filter rules (one rule per filter criteria)
+    Some simple filter rules as functions
     """
-    speaker_matches = speaker is None or speaker.lower() in talk["speakers"].lower()
-    title_matches = title is None or title.lower() in talk["title"].lower()
-    track_matches = track is None or track.lower() in talk["track"].lower()
-    day_matches = day == 0 or day == talk["day"]
-    start_matches = start is None or is_talk_in_timerange(talk, start)
-    room_matches = room == "all" or room.lower() in talk["room"].lower()
-    conference_matches = conference == "all" or conference == talk["conference_acronym"]
+
+    def speaker_matches():
+        return speaker is None or speaker.lower() in talk["speakers"].lower()
+
+    def title_matches():
+        return title is None or title.lower() in talk["title"].lower()
+
+    def track_matches():
+        return track is None or track.lower() in talk["track"].lower()
+
+    def day_matches():
+        return day == 0 or day == talk["day"]
+
+    def start_matches():
+        return start is None or is_talk_in_timerange(talk, start)
+
+    def room_matches():
+        return room == "all" or room.lower() in talk["room"].lower()
+
+    def conference_matches():
+        return conference == "all" or conference == talk["conference_acronym"]
+
+    def filtered_as_past():
+        return filter_past and is_talk_in_past(talk, now)
+
     return (
-        speaker_matches
-        and title_matches
-        and track_matches
-        and day_matches
-        and start_matches
-        and room_matches
-        and conference_matches
+        speaker_matches()
+        and title_matches()
+        and track_matches()
+        and day_matches()
+        and start_matches()
+        and room_matches()
+        and conference_matches()
+        and not filtered_as_past()
     )
 
 
@@ -159,7 +187,7 @@ def print_formatted_talks(
     header = [
         "Conference",
         "Day",
-        "Time",
+        "Talk Start",
         "Duration",
         "Room",
         "Title",
@@ -244,8 +272,8 @@ def print_formatted_talks(
 @click.option(
     "--sort",
     default=None,
-    type=click.Choice(["day", "speakers", "title", "track", "room"]),
-    help="Sort by day|speakers|title|track|room",
+    type=click.Choice(["day", "speakers", "title", "track", "room", "talk_start"]),
+    help="Sort by day|speakers|title|track|room|talk_start",
 )
 @click.option("--reverse", default=False, help="Reverse results", is_flag=True)
 @click.option(
@@ -257,13 +285,16 @@ def print_formatted_talks(
 @click.option(
     "--column-width",
     default=60,
-    help="Set the max width of the wide columns (which is everything string based)"
+    help="Set the max width of the wide columns (which is everything string based)",
 )
 @click.option(
     "--update-cache",
     default=False,
     help="Delete the cache file and redownload all fahrplans",
-    is_flag="True",
+    is_flag=True,
+)
+@click.option(
+    "--no-past", default=False, help="Filter out talks that lay in the past", is_flag=True
 )
 def cli(
     speaker,
@@ -279,12 +310,14 @@ def cli(
     reverse,
     tablefmt,
     column_width,
-    update_cache
+    update_cache,
+    no_past,
 ):
+    now = dt.datetime.now().astimezone()
     matching_talks = [
         x
         for x in Fahrplan(column_width=column_width, update_cache=update_cache).flat_plans
-        if filter_talk(x, speaker, title, track, day, start, room, conference)
+        if filter_talk(x, speaker, title, track, day, start, room, conference, no_past, now)
     ]
     print_formatted_talks(
         matching_talks,
