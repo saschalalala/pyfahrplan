@@ -21,7 +21,7 @@ cli_defaults = {
     "day": -1,  # 0 seems to be a valid day value in some c3s
     "start": None,
     "room": "all",
-    "conference": None,
+    "conference": "all",
     "show_abstract": False,
     "show_description": False,
     "sort": None,

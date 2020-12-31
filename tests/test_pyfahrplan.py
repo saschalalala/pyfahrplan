@@ -36,7 +36,7 @@ def mock_requests(func):
 
 
 def test_version():
-    assert __version__ == '1.0.11'
+    assert __version__ == '1.0.12'
 
 
 @mock_requests
