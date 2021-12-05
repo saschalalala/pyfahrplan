@@ -1,6 +1,6 @@
 # pyfahrplan
 
-CLI application for several CCC fahrplan files (schedule.JSON), from [pretalx](https://pretalx.com/p/about/), [frab](http://frab.github.io/frab/), etc.
+CLI application for CCC fahrplan files (schedule.json) from [pretalx](https://pretalx.com/p/about/), [frab](http://frab.github.io/frab/), etc.
 
 ## Usage
 
@@ -8,6 +8,8 @@ CLI application for several CCC fahrplan files (schedule.JSON), from [pretalx](h
 Usage: pyfahrplan.py [OPTIONS]
 
 Options:
+  -c, --conference TEXT           conference acronym (32c3 to 36c3 plus rc3) that you
+                                  want to filter on, 'all' for all conferences
   -s, --speaker TEXT              Name of a speaker you want to search.
   -t, --title TEXT                A part of the title of the talk(s) you want
                                   to search.
@@ -19,8 +21,6 @@ Options:
                                   search.
   -r, --room TEXT                 Name of the room you want to filter [room
                                   names] or 'all' for all rooms
-  -c, --conference TEXT           CCC acronym (32c3 to 36c3 plus rc3) that you
-                                  want to filter on, all for all conferences
   --show-abstract                 Shows abstracts, default False, experimental
   --show-description              Shows descriptions, default False,
                                   experimental
