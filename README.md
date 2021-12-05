@@ -1,6 +1,6 @@
 # pyfahrplan
 
-CLI application for several CCC fahrplan files
+CLI application for several CCC fahrplan files (schedule.JSON), from [pretalx](https://pretalx.com/p/about/), [frab](http://frab.github.io/frab/), etc.
 
 ## Usage
 
