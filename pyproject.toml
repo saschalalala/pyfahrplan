@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyfahrplan"
-version = "1.0.15"
+version = "1.1.0"
 description = "A CCC Fahrplan CLI"
 authors = ["Sascha <saschalalala@github.com>"]
 license = "MIT"
@@ -10,26 +10,28 @@ keywords = ["cli", "ccc", "calendar", "console"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-click = "^7.0"
-requests = "^2.22.0"
-requests_cache = "^0.5.2"
+click = "^8.0"
+requests = "^2.26.0"
+requests_cache = "^0.8.1"
 python-dateutil = "^2.8.1"
 rich = "^10.16.1"
 
 [tool.poetry.dev-dependencies]
-pytest = "^4.6"
-poethepoet = "^0.9.0"
-pytest-cov = "^2.10.1"
-requests-mock = "^1.8.0"
-coverage = "^5.3.1"
+pytest = "^6.0"
+poethepoet = "^0.11.0"
+pytest-cov = "^3.0.0"
+requests-mock = "^1.9.3"
+coverage = "^6.2"
+black = "^21.12b0"
+tomlkit = "^0.8.0"
 
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
 
 [tool.poetry.scripts]
-pyfahrplan = 'pyfahrplan.pyfahrplan:cli'
+pyfahrplan = 'pyfahrplan.pyfahrplan_cli:cli'
 
 [tool.poe.tasks]
 test = "pytest tests/"
-coverage = "pytest --cov=pyfahrplan tests/"
+coverage = "pytest --cov=pyfahrplan_cli tests/"

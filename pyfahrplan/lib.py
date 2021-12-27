@@ -1,47 +1,20 @@
-from dateutil.parser import parse
 import datetime as dt
+from dateutil.parser import parse
 from json.decoder import JSONDecodeError
 import os
 from pathlib import Path
 import sys
 
-import click
 import requests
 import requests_cache
-# from tabulate import tabulate, _table_formats
 from rich.console import Console
 from rich.table import Table
+
+from pyfahrplan.config import config_defaults as cli_defaults, Colour
 
 script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
 cache_file = Path("fahrplan_cache")
 requests_cache.install_cache(str(script_dir / cache_file))
-
-cli_defaults = {
-    "speaker": None,
-    "title": None,
-    "track": None,
-    "day": -1,  # 0 seems to be a valid day value in some c3s
-    "start": None,
-    "room": "all",
-    "conference": "all",
-    "show_abstract": False,
-    "show_description": False,
-    "sort": None,
-    "tablefmt": "fancy_grid",
-    "update_cache": False,
-    "no_past": False
-}
-
-
-class Colour:
-    HEADER = "\033[95m"
-    OKBLUE = "\033[94m"
-    OKGREEN = "\033[92m"
-    WARNING = "\033[93m"
-    FAIL = "\033[91m"
-    ENDC = "\033[0m"
-    BOLD = "\033[1m"
-    UNDERLINE = "\033[4m"
 
 
 class Fahrplan:
@@ -131,7 +104,7 @@ def is_talk_in_past(talk: dict, now: dt.datetime) -> bool:
     duration = parse(talk["talk_duration"])
     end = talk_start_datetime + dt.timedelta(hours=duration.hour, minutes=duration.minute)
     return now > end
- 
+
 
 def filter_talk(
     talk: dict = {},
@@ -233,108 +206,5 @@ def print_formatted_talks(
         for row in data:
             table.add_row(*row)
         console.print(table)
-    except ValueError:
+    except (ValueError, IndexError):
         console.print("No talks in this period.")
-
-
-@click.command()
-@click.option(
-    "--conference",
-    "-c",
-    default="rc3-2021",
-    help="CCC acronym (32c3 to 36c3 plus rc3 and rc3-2021) that you want to filter on, 'all' for all conferences",
-)
-@click.option(
-    "--day",
-    "-d",
-    default=cli_defaults["day"],
-    help="Day you want to filter [1-4] or 0 for all days.",
-)
-@click.option(
-    "--room",
-    "-r",
-    default=cli_defaults["room"],
-    help="Name of the room you want to filter [room names] or 'all' for all rooms",
-)
-@click.option("--speaker", "-s", default=None, help="Name of a speaker you want to search.")
-@click.option(
-    "--start",
-    "-st",
-    default=cli_defaults["start"],
-    help="Start time of the talk(s) you want to search.",
-)
-@click.option(
-    "--title",
-    "-t",
-    default=cli_defaults["title"],
-    help="A part of the title of the talk(s) you want to search.",
-)
-@click.option(
-    "--track",
-    "-tr",
-    default=cli_defaults["track"],
-    help="A part of the track description you want to search.",
-)
-@click.option("--reverse", default=False, help="Reverse results", is_flag=True)
-@click.option(
-    "--show-abstract",
-    default=cli_defaults["show_abstract"],
-    help="Shows abstracts, default False, experimental",
-    is_flag=True,
-)
-@click.option(
-    "--show-description",
-    default=cli_defaults["show_description"],
-    help="Shows descriptions, default False, experimental",
-    is_flag=True,
-)
-@click.option(
-    "--sort",
-    default=cli_defaults["sort"],
-    type=click.Choice(["day", "speakers", "title", "track", "room", "talk_start"]),
-    help="Sort by day|speakers|title|track|room|talk_start",
-)
-@click.option(
-    "--update-cache",
-    default=cli_defaults["update_cache"],
-    help="Delete the cache file and redownload all fahrplans",
-    is_flag=True,
-)
-@click.option(
-    "--no-past",
-    default=cli_defaults["no_past"],
-    help="Filter out talks that lay in the past",
-    is_flag=True,
-)
-def cli(
-    speaker,
-    title,
-    track,
-    day,
-    start,
-    room,
-    show_abstract,
-    show_description,
-    conference,
-    sort,
-    reverse,
-    update_cache,
-    no_past,
-):
-    now = dt.datetime.now().astimezone()
-    matching_talks = [
-        x
-        for x in Fahrplan(update_cache=update_cache).flat_plans
-        if filter_talk(x, speaker, title, track, day, start, room, conference, no_past, now)
-    ]
-    print_formatted_talks(
-        matching_talks,
-        show_abstract,
-        show_description,
-        sort_by=sort,
-        reverse=reverse,
-    )
-
-
-if __name__ == "__main__":
-    cli()

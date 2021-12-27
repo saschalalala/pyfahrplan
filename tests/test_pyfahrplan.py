@@ -6,7 +6,7 @@ import os
 import requests_mock
 
 from pyfahrplan import __version__
-from pyfahrplan.pyfahrplan import Fahrplan, filter_talk
+from pyfahrplan.lib import Fahrplan, filter_talk
 from .data.test_data import test_flat_talks
 
 script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -14,11 +14,8 @@ data_dir = script_dir / "data"
 
 
 def mock_requests(func):
-    print("decorator")
-
     @wraps(func)
     def function_wrapper():
-        print("function wrapper")
         with requests_mock.Mocker() as m:
             for c3 in range(32, 37):
                 json_file = Path(f"{c3}.json")
@@ -27,16 +24,21 @@ def mock_requests(func):
                     f"https://raw.githubusercontent.com/voc/{c3}C3_schedule/master/everything.schedule.json",
                     text=json.dumps(fahrplan_data),
                 )
-            json_file = Path("rc3.json")
-            rc3_data = json.load(open(data_dir / json_file, "r"))
-            m.get("https://data.c3voc.de/rC3/everything.schedule.json", text=json.dumps(rc3_data))
+            for rc3 in ["rC3", "rC3_21"]:
+                json_file = Path(f"{rc3.lower()}.json")
+                rc3_data = json.load(open(data_dir / json_file, "r"))
+                m.get(
+                    f"https://data.c3voc.de/{rc3.lower()}/everything.schedule.json",
+                    text=json.dumps(rc3_data),
+                )
+
             return func()
 
     return function_wrapper
 
 
 def test_version():
-    assert __version__ == '1.0.12'
+    assert __version__ == '1.1.0'
 
 
 @mock_requests
