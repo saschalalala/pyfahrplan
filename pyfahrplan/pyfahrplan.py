@@ -50,6 +50,7 @@ class Fahrplan:
             for x in range(32, 37)
         ]
         self.urls.append("https://data.c3voc.de/rC3/everything.schedule.json")
+        self.urls.append("https://data.c3voc.de/rC3_21/everything.schedule.json")
         self.fahrplans = []
         self.flat_plans = []
         self.update_cache = update_cache
