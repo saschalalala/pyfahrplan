@@ -8,7 +8,9 @@ import sys
 import click
 import requests
 import requests_cache
-from tabulate import tabulate, _table_formats
+# from tabulate import tabulate, _table_formats
+from rich.console import Console
+from rich.table import Table
 
 script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
 cache_file = Path("fahrplan_cache")
@@ -27,8 +29,7 @@ cli_defaults = {
     "sort": None,
     "tablefmt": "fancy_grid",
     "update_cache": False,
-    "no_past": False,
-    "column_width": 60,
+    "no_past": False
 }
 
 
@@ -49,8 +50,11 @@ class Fahrplan:
             f"https://raw.githubusercontent.com/voc/{x}C3_schedule/master/everything.schedule.json"
             for x in range(32, 37)
         ]
-        self.urls.append("https://data.c3voc.de/rC3/everything.schedule.json")
-        self.urls.append("https://data.c3voc.de/rC3_21/everything.schedule.json")
+        # voc urls for the remote c3 schedules
+        self.urls.extend([
+            "https://data.c3voc.de/rC3/everything.schedule.json",
+            "https://data.c3voc.de/rC3_21/everything.schedule.json"
+        ])
         self.fahrplans = []
         self.flat_plans = []
         self.update_cache = update_cache
@@ -127,21 +131,7 @@ def is_talk_in_past(talk: dict, now: dt.datetime) -> bool:
     duration = parse(talk["talk_duration"])
     end = talk_start_datetime + dt.timedelta(hours=duration.hour, minutes=duration.minute)
     return now > end
-
-
-def format_row(row, column_width):
-    def format_cell(cell, column_width):
-        if type(cell) == str and (value_length := len(cell)) >= column_width:
-            cell = " \n".join(
-                # fmt: off
-                cell[n:n + column_width]
-                # fmt: on
-                for n in range(0, value_length, column_width)
-            )
-        return cell
-
-    return [format_cell(cell, column_width) for cell in row]
-
+ 
 
 def filter_talk(
     talk: dict = {},
@@ -191,10 +181,9 @@ def print_formatted_talks(
     show_abstract: bool,
     show_description: bool,
     sort_by: str,
-    reverse: bool,
-    tablefmt: str,
-    column_width: int,
+    reverse: bool
 ) -> None:
+    console = Console()
     header = [
         "Conference",
         "Day",
@@ -223,25 +212,57 @@ def print_formatted_talks(
     data = []
 
     for talk in talks:
-        current_data_point = [talk.get(field, "") for field in fields]
+        current_data_point = [str(talk.get(field, "")) for field in fields]
         if show_abstract:
             current_data_point.append(talk["talk_abstract"])
         if show_description:
             current_data_point.append(talk["talk_description"])
         # TODO think about coloring every second row (needs theming and config tho)
-        data.append(format_row(current_data_point, column_width))
+        data.append(current_data_point)
     try:
         if sort_by is not None:
             data.sort(key=lambda x: x[fields.index(sort_by)])
         if reverse:
             data.reverse()
-        print(tabulate(data, headers=header, tablefmt=tablefmt))
+        table = Table(
+            title=f"Your conference information for {data[0][0]}",
+            show_lines=True
+        )
+        for column in header:
+            table.add_column(column)
+        for row in data:
+            table.add_row(*row)
+        console.print(table)
     except ValueError:
-        print("No talks in this period.")
+        console.print("No talks in this period.")
 
 
 @click.command()
+@click.option(
+    "--conference",
+    "-c",
+    default="rc3-2021",
+    help="CCC acronym (32c3 to 36c3 plus rc3 and rc3-2021) that you want to filter on, 'all' for all conferences",
+)
+@click.option(
+    "--day",
+    "-d",
+    default=cli_defaults["day"],
+    help="Day you want to filter [1-4] or 0 for all days.",
+)
+@click.option(
+    "--room",
+    "-r",
+    default=cli_defaults["room"],
+    help="Name of the room you want to filter [room names] or 'all' for all rooms",
+)
 @click.option("--speaker", "-s", default=None, help="Name of a speaker you want to search.")
+@click.option(
+    "--start",
+    "-st",
+    default=cli_defaults["start"],
+    help="Start time of the talk(s) you want to search.",
+)
 @click.option(
     "--title",
     "-t",
@@ -254,30 +275,7 @@ def print_formatted_talks(
     default=cli_defaults["track"],
     help="A part of the track description you want to search.",
 )
-@click.option(
-    "--day",
-    "-d",
-    default=cli_defaults["day"],
-    help="Day you want to filter [1-4] or 0 for all days.",
-)
-@click.option(
-    "--start",
-    "-st",
-    default=cli_defaults["start"],
-    help="Start time of the talk(s) you want to search.",
-)
-@click.option(
-    "--room",
-    "-r",
-    default=cli_defaults["room"],
-    help="Name of the room you want to filter [room names] or 'all' for all rooms",
-)
-@click.option(
-    "--conference",
-    "-c",
-    default="rc3",
-    help="CCC acronym (32c3 to 36c3 plus rc3) that you want to filter on, all for all conferences",
-)
+@click.option("--reverse", default=False, help="Reverse results", is_flag=True)
 @click.option(
     "--show-abstract",
     default=cli_defaults["show_abstract"],
@@ -295,18 +293,6 @@ def print_formatted_talks(
     default=cli_defaults["sort"],
     type=click.Choice(["day", "speakers", "title", "track", "room", "talk_start"]),
     help="Sort by day|speakers|title|track|room|talk_start",
-)
-@click.option("--reverse", default=False, help="Reverse results", is_flag=True)
-@click.option(
-    "--tablefmt",
-    default=cli_defaults["tablefmt"],
-    help="Choose a tableformat that is supported by python-tabular",
-    type=click.Choice(_table_formats),
-)
-@click.option(
-    "--column-width",
-    default=cli_defaults["column_width"],
-    help="Set the max width of the wide columns (which is everything string based)",
 )
 @click.option(
     "--update-cache",
@@ -332,8 +318,6 @@ def cli(
     conference,
     sort,
     reverse,
-    tablefmt,
-    column_width,
     update_cache,
     no_past,
 ):
@@ -349,8 +333,6 @@ def cli(
         show_description,
         sort_by=sort,
         reverse=reverse,
-        tablefmt=tablefmt,
-        column_width=column_width,
     )
 
 
