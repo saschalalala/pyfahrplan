@@ -4,12 +4,9 @@ import json
 from pathlib import Path
 
 from pyfahrplan.config import config_defaults as cli_defaults, Colour
+from pyfahrplan.schedules import SCHEDULE_SOURCES
 
 DATA_DIR = Path(__file__).parent / "data"
-
-SCHEDULE_FILES = [
-    f"{c3}c3.json" for c3 in range(32, 37)
-] + ["rc3.json", "rc3_21.json"]
 
 
 class Fahrplan:
@@ -22,7 +19,7 @@ class Fahrplan:
 
     def _load_schedules(self):
         self.fahrplans = []
-        for filename in SCHEDULE_FILES:
+        for filename in SCHEDULE_SOURCES:
             path = DATA_DIR / filename
             try:
                 with open(path) as f:

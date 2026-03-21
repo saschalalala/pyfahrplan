@@ -11,14 +11,22 @@ data_dir = Path(__file__).parent / "data"
 def mock_schedule_data(tmp_path, monkeypatch):
     """Point Fahrplan.DATA_DIR at a tmp dir populated with test JSON files."""
     import shutil
+    from pyfahrplan.schedules import SCHEDULE_SOURCES
+
+    # Map test data filenames to their expected names
+    test_files = {}
     for src in data_dir.glob("*.json"):
-        # Map test filenames (e.g. 32.json) to expected names (e.g. 32c3.json)
         name = src.stem
         if name.isdigit():
-            dest_name = f"{name}c3.json"
+            test_files[f"{name}c3.json"] = src
         else:
-            dest_name = f"{name}.json"
-        shutil.copy(src, tmp_path / dest_name)
+            test_files[f"{name}.json"] = src
+
+    # For every expected schedule file, copy matching test data or reuse 32c3
+    fallback = data_dir / "32.json"
+    for filename in SCHEDULE_SOURCES:
+        src = test_files.get(filename, fallback)
+        shutil.copy(src, tmp_path / filename)
 
     import pyfahrplan.lib
     monkeypatch.setattr(pyfahrplan.lib, "DATA_DIR", tmp_path)

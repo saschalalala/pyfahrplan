@@ -15,20 +15,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Download schedules
         run: |
-          mkdir -p pyfahrplan/data
-          for c3 in 32 33 34 35 36; do
-            curl -sfL -o "pyfahrplan/data/${c3}c3.json.tmp" \
-              "https://raw.githubusercontent.com/voc/${c3}C3_schedule/master/everything.schedule.json" \
-              || echo "::warning::Failed to download ${c3}C3 schedule"
-          done
-          curl -sfL -o "pyfahrplan/data/rc3.json.tmp" \
-            "https://data.c3voc.de/rC3/everything.schedule.json" \
-            || echo "::warning::Failed to download rC3 schedule"
-          curl -sfL -o "pyfahrplan/data/rc3_21.json.tmp" \
-            "https://data.c3voc.de/rC3_21/everything.schedule.json" \
-            || echo "::warning::Failed to download rC3_21 schedule"
+          python3 -c "
+          import subprocess, sys
+          sys.path.insert(0, '.')
+          from pyfahrplan.schedules import SCHEDULE_SOURCES
+
+          for filename, url in SCHEDULE_SOURCES.items():
+              dest = f'pyfahrplan/data/{filename}.tmp'
+              result = subprocess.run(
+                  ['curl', '-sfL', '--max-time', '30', '-o', dest, url],
+                  capture_output=True,
+              )
+              if result.returncode != 0:
+                  print(f'::warning::Failed to download {filename} from {url}')
+              else:
+                  print(f'  Downloaded {filename}')
+          "
 
       - name: Validate and accept downloads
         run: |
@@ -78,6 +86,6 @@ jobs:
         with:
           commit-message: "Update conference schedule data"
           title: "Update conference schedule data"
-          body: "Automated weekly update of CCC conference schedule JSON files."
+          body: "Automated weekly update of conference schedule JSON files."
           branch: automated/update-schedules
           delete-branch: true
