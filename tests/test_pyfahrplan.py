@@ -28,7 +28,7 @@ def test_conference_filter():
 
 def test_speaker_filter():
     filtered_talk = filter_talk(test_flat_talks[0], conference="32c3", speaker="CaRiNa")
-    filtered_talk_2 = filter_talk(test_flat_talks[0], conference="32c3", speaker="CaRiNa2")
+    filtered_talk_2 = filter_talk(test_flat_talks[0], conference="32c3", speaker="Zaphod Beeblebrox")
     assert filtered_talk is True and filtered_talk_2 is False
 
 

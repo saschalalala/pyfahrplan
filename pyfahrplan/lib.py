@@ -1,9 +1,44 @@
 import datetime as dt
+from difflib import SequenceMatcher
 from dateutil.parser import parse
 from pathlib import Path
 import sqlite3
 
 from pyfahrplan.config import config_defaults as cli_defaults, Colour
+
+# Minimum similarity ratio for fuzzy matching (0.0–1.0).
+FUZZY_THRESHOLD = 0.6
+
+
+def fuzzy_match(query: str, text: str) -> bool:
+    """Check whether *query* fuzzy-matches anywhere in *text*.
+
+    The query is split on whitespace into tokens.  Each token must match
+    independently — either as a plain substring or as a fuzzy match against
+    at least one word in *text*.  This gives two useful behaviours:
+
+    * **multi-token**: ``"py scr"`` matches ``"Python Scripting"`` because
+      ``"py"`` is a substring of ``"python"`` and ``"scr"`` is a substring
+      of ``"scripting"``.
+    * **typo tolerance**: ``"pythn"`` matches ``"python"`` because the
+      SequenceMatcher ratio exceeds *FUZZY_THRESHOLD*.
+    """
+    if not query:
+        return True
+    text_lower = text.lower()
+    words = text_lower.split()
+    for token in query.lower().split():
+        # Fast path: plain substring match against the whole text.
+        if token in text_lower:
+            continue
+        # Slow path: fuzzy-match the token against individual words.
+        if any(
+            SequenceMatcher(None, token, word).ratio() >= FUZZY_THRESHOLD
+            for word in words
+        ):
+            continue
+        return False
+    return True
 
 DB_PATH = Path(__file__).parent / "data" / "talks.db"
 
@@ -94,10 +129,16 @@ def filter_talk(
     Some simple filter rules as functions
     """
 
-    def generic_in_match(filter_value, filter_key, talk_attribute):
+    def exact_in_match(filter_value, filter_key, talk_attribute):
         return (
             filter_value == cli_defaults[filter_key]
             or filter_value.lower() in talk[talk_attribute].lower()
+        )
+
+    def fuzzy_in_match(filter_value, filter_key, talk_attribute):
+        return (
+            filter_value == cli_defaults[filter_key]
+            or fuzzy_match(filter_value, talk[talk_attribute])
         )
 
     def day_matches():
@@ -110,13 +151,13 @@ def filter_talk(
         return filter_past and is_talk_in_past(talk, now)
 
     return (
-        generic_in_match(conference, "conference", "conference_acronym")
-        and generic_in_match(speaker, "speaker", "speakers")
-        and generic_in_match(title, "title", "title")
-        and generic_in_match(track, "track", "track")
+        exact_in_match(conference, "conference", "conference_acronym")
+        and fuzzy_in_match(speaker, "speaker", "speakers")
+        and fuzzy_in_match(title, "title", "title")
+        and fuzzy_in_match(track, "track", "track")
         and day_matches()
         and start_matches()
-        and generic_in_match(room, "room", "room")
+        and exact_in_match(room, "room", "room")
         and not filtered_as_past()
     )
 
