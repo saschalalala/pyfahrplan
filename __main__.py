@@ -1,5 +1,4 @@
-import runpy
-
+from pyfahrplan.app import main
 
 if __name__ == "__main__":
-    runpy.run_module("pyfahrplan", run_name="__main__")
+    main()

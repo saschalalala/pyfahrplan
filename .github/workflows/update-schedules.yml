@@ -1,0 +1,95 @@
+name: Update Schedules
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # every Monday at 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: prefix-dev/setup-pixi@v0.9.4
+        with:
+          environments: dev
+          cache: false
+          locked: false
+
+      - name: Download schedules
+        run: |
+          pixi run -e dev python -c "
+          import subprocess, sys
+          from pyfahrplan.schedules import SCHEDULE_SOURCES
+
+          for filename, url in SCHEDULE_SOURCES.items():
+              dest = f'pyfahrplan/data/{filename}.tmp'
+              result = subprocess.run(
+                  ['curl', '-sfL', '--max-time', '30', '-o', dest, url],
+                  capture_output=True,
+              )
+              if result.returncode != 0:
+                  print(f'::warning::Failed to download {filename} from {url}')
+              else:
+                  print(f'  Downloaded {filename}')
+          "
+
+      - name: Validate and accept downloads
+        run: |
+          python3 -c "
+          import json, sys, os, glob
+
+          def validate(path):
+              with open(path) as f:
+                  data = json.load(f)
+              schedule = data['schedule']
+              conf = schedule['conference']
+              assert isinstance(conf['title'], str), 'missing conference title'
+              assert isinstance(conf['acronym'], str), 'missing conference acronym'
+              days = conf['days']
+              assert isinstance(days, list) and len(days) > 0, 'no days in schedule'
+              for day in days:
+                  assert 'index' in day, 'day missing index'
+                  assert isinstance(day['rooms'], dict), 'day missing rooms'
+                  for room_talks in day['rooms'].values():
+                      for talk in room_talks:
+                          assert 'id' in talk, 'talk missing id'
+                          assert 'title' in talk, 'talk missing title'
+                          assert 'start' in talk, 'talk missing start'
+                          assert 'date' in talk, 'talk missing date'
+                          assert 'duration' in talk, 'talk missing duration'
+
+          ok = 0
+          for tmp in sorted(glob.glob('pyfahrplan/data/*.json.tmp')):
+              dest = tmp.removesuffix('.tmp')
+              name = os.path.basename(dest)
+              try:
+                  validate(tmp)
+                  os.replace(tmp, dest)
+                  ok += 1
+                  print(f'  ✓ {name}')
+              except Exception as e:
+                  os.remove(tmp)
+                  print(f'::warning::{name} failed validation: {e}')
+
+          if ok == 0:
+              print('::error::All schedule downloads failed validation')
+              sys.exit(1)
+          "
+
+      - name: Build SQLite database
+        run: pixi run -e dev build-db
+
+      - name: Create PR if schedules changed
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "Update conference schedule data"
+          title: "Update conference schedule data"
+          body: "Automated weekly update of conference schedule JSON files."
+          branch: automated/update-schedules
+          delete-branch: true

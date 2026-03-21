@@ -1,0 +1,86 @@
+from pathlib import Path
+
+import pytest
+from dateutil.parser import parse
+
+from tests.data.test_data import test_flat_talks
+
+data_dir = Path(__file__).parent / "data"
+
+
+@pytest.fixture
+def mock_schedule_data(tmp_path, monkeypatch):
+    """Build a test SQLite database and point Fahrplan at it."""
+    import shutil
+    from pyfahrplan.schedules import SCHEDULE_SOURCES
+    from pyfahrplan.build_db import build_db
+
+    # Map test data filenames to their expected names
+    test_files = {}
+    for src in data_dir.glob("*.json"):
+        name = src.stem
+        if name.isdigit():
+            test_files[f"{name}c3.json"] = src
+        else:
+            test_files[f"{name}.json"] = src
+
+    # For every expected schedule file, copy matching test data or reuse 32c3
+    fallback = data_dir / "32.json"
+    for filename in SCHEDULE_SOURCES:
+        src = test_files.get(filename, fallback)
+        shutil.copy(src, tmp_path / filename)
+
+    # Build the SQLite database
+    db_path = tmp_path / "talks.db"
+    build_db(data_dir=tmp_path, db_path=db_path)
+
+    import pyfahrplan.lib
+    monkeypatch.setattr(pyfahrplan.lib, "DB_PATH", db_path)
+    return tmp_path
+
+
+@pytest.fixture
+def sample_talks():
+    """Return the test_flat_talks list."""
+    return list(test_flat_talks)
+
+
+@pytest.fixture
+def single_talk():
+    """Return the first test talk (32c3 Opening Event)."""
+    return dict(test_flat_talks[0])
+
+
+@pytest.fixture
+def make_talk():
+    """Factory fixture to create talk dicts with sensible defaults."""
+    defaults = {
+        "conference_title": "Test Conference",
+        "conference_acronym": "testc3",
+        "day": 1,
+        "room": "Room 1",
+        "title": "Test Talk",
+        "talk_guid": "test-guid-0001",
+        "talk_id": 9999,
+        "talk_start": "10:00",
+        "talk_date": "2024-01-01T10:00:00+01:00",
+        "talk_duration": "01:00",
+        "talk_description": "A test talk description.",
+        "talk_abstract": "A test talk abstract.",
+        "track": "Testing",
+        "speakers": "Test Speaker",
+    }
+
+    def _make(**overrides):
+        talk = dict(defaults)
+        talk.update(overrides)
+        # Compute pre-parsed time fields
+        from pyfahrplan.lib import _parse_duration
+        start_parsed = parse(talk["talk_start"])
+        duration_td = _parse_duration(talk["talk_duration"])
+        talk["_start_parsed"] = start_parsed
+        talk["_start_end_parsed"] = start_parsed + duration_td
+        talk["_date_end_parsed"] = parse(talk["talk_date"]) + duration_td
+        return talk
+
+    return _make
