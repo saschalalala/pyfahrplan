@@ -10,7 +10,6 @@ config_defaults = {
     "show_description": False,
     "sort": None,
     "tablefmt": "fancy_grid",
-    "update_cache": False,
     "no_past": False
 }
 

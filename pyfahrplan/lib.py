@@ -1,51 +1,38 @@
 import datetime as dt
 from dateutil.parser import parse
-from json.decoder import JSONDecodeError
-import os
+import json
 from pathlib import Path
-import sys
-
-import requests
-import requests_cache
 
 from pyfahrplan.config import config_defaults as cli_defaults, Colour
 
-script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
-cache_file = Path("fahrplan_cache")
-requests_cache.install_cache(str(script_dir / cache_file))
+DATA_DIR = Path(__file__).parent / "data"
+
+SCHEDULE_FILES = [
+    f"{c3}c3.json" for c3 in range(32, 37)
+] + ["rc3.json", "rc3_21.json"]
 
 
 class Fahrplan:
-    def __init__(self, update_cache: bool = cli_defaults['update_cache']):
-        self.urls = [
-            f"https://raw.githubusercontent.com/voc/{x}C3_schedule/master/everything.schedule.json"
-            for x in range(32, 37)
-        ]
-        # voc urls for the remote c3 schedules
-        self.urls.extend([
-            "https://data.c3voc.de/rC3/everything.schedule.json",
-            "https://data.c3voc.de/rC3_21/everything.schedule.json"
-        ])
+    def __init__(self):
         self.fahrplans = []
         self.flat_plans = []
-        self.update_cache = update_cache
         self.errors = []
-        self._get_fahrplans()
+        self._load_schedules()
         self.flatten_fahrplans()
 
-    def _get_fahrplans(self):
-        if self.update_cache:
-            requests_cache.clear()
+    def _load_schedules(self):
         self.fahrplans = []
-        for url in self.urls:
+        for filename in SCHEDULE_FILES:
+            path = DATA_DIR / filename
             try:
-                self.fahrplans.append(requests.get(url).json()["schedule"])
-            except JSONDecodeError as e:
+                with open(path) as f:
+                    self.fahrplans.append(json.load(f)["schedule"])
+            except (json.JSONDecodeError, FileNotFoundError, KeyError) as e:
                 self.errors.append(
-                    f"Problem downloading the Fahrplan {url}. Check your internet connection. {e}"
+                    f"Problem loading schedule {filename}: {e}"
                 )
         if not self.fahrplans:
-            self.errors.append("Fahrplan empty. Something is wrong with your urls.")
+            self.errors.append("No schedules found. Run the update-schedules workflow to download data.")
 
     def flatten_fahrplans(self):
         self.flat_plans = []

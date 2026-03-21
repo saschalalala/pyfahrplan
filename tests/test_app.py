@@ -17,18 +17,6 @@ async def test_app_shows_loading_on_start():
 
 
 @pytest.mark.asyncio
-async def test_app_update_cache_flag():
-    app = FahrplanApp(update_cache=True)
-    assert app._update_cache is True
-
-
-@pytest.mark.asyncio
-async def test_app_default_no_update_cache():
-    app = FahrplanApp()
-    assert app._update_cache is False
-
-
-@pytest.mark.asyncio
 async def test_app_transitions_to_main_screen():
     from tests.data.test_data import test_flat_talks
 

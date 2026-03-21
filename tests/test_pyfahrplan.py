@@ -1,54 +1,18 @@
-from functools import wraps
-import json
-from pathlib import Path
-import os
-
-import requests_mock
-
 from pyfahrplan import __version__
 from pyfahrplan.lib import Fahrplan, filter_talk, filter_talks, sort_talks
 from .data.test_data import test_flat_talks
-
-script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
-data_dir = script_dir / "data"
-
-
-def mock_requests(func):
-    @wraps(func)
-    def function_wrapper():
-        with requests_mock.Mocker() as m:
-            for c3 in range(32, 37):
-                json_file = Path(f"{c3}.json")
-                fahrplan_data = json.load(open(data_dir / json_file, "r"))
-                m.get(
-                    f"https://raw.githubusercontent.com/voc/{c3}C3_schedule/master/everything.schedule.json",
-                    text=json.dumps(fahrplan_data),
-                )
-            for rc3 in ["rC3", "rC3_21"]:
-                json_file = Path(f"{rc3.lower()}.json")
-                rc3_data = json.load(open(data_dir / json_file, "r"))
-                m.get(
-                    f"https://data.c3voc.de/{rc3.lower()}/everything.schedule.json",
-                    text=json.dumps(rc3_data),
-                )
-
-            return func()
-
-    return function_wrapper
 
 
 def test_version():
     assert __version__ == '1.1.0'
 
 
-@mock_requests
-def test_fahrplan_initialization():
+def test_fahrplan_initialization(mock_schedule_data):
     fahrplan = Fahrplan()
     assert len(fahrplan.flat_plans) > 0
 
 
-@mock_requests
-def test_fahrplan_get_conference_acronyms():
+def test_fahrplan_get_conference_acronyms(mock_schedule_data):
     fahrplan = Fahrplan()
     acronyms = fahrplan.get_conference_acronyms()
     assert "32c3" in acronyms

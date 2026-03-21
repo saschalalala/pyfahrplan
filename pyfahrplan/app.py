@@ -1,4 +1,3 @@
-import sys
 from pathlib import Path
 
 from textual.app import App
@@ -18,9 +17,8 @@ class FahrplanApp(App):
         ("q", "quit", "Quit"),
     ]
 
-    def __init__(self, update_cache: bool = False, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self._update_cache = update_cache
 
     def compose(self):
         yield Static("Loading schedules...", id="loading-message")
@@ -32,7 +30,7 @@ class FahrplanApp(App):
 
     async def _load_data(self) -> None:
         from pyfahrplan.lib import Fahrplan
-        fahrplan = Fahrplan(update_cache=self._update_cache)
+        fahrplan = Fahrplan()
 
         if fahrplan.errors and not fahrplan.flat_plans:
             self.call_from_thread(self._show_error, "\n".join(fahrplan.errors))
@@ -61,8 +59,7 @@ class FahrplanApp(App):
 
 def main():
     """Entry point for the pyfahrplan TUI."""
-    update_cache = "--update-cache" in sys.argv
-    app = FahrplanApp(update_cache=update_cache)
+    app = FahrplanApp()
     app.run()
 
 

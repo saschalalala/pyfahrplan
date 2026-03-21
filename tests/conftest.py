@@ -1,8 +1,6 @@
-import json
 from pathlib import Path
 
 import pytest
-import requests_mock as rm
 
 from tests.data.test_data import test_flat_talks
 
@@ -10,24 +8,21 @@ data_dir = Path(__file__).parent / "data"
 
 
 @pytest.fixture
-def mock_fahrplan_requests():
-    """Mock all Fahrplan HTTP requests using local JSON test data."""
-    with rm.Mocker() as m:
-        for c3 in range(32, 37):
-            json_file = data_dir / f"{c3}.json"
-            fahrplan_data = json.load(open(json_file, "r"))
-            m.get(
-                f"https://raw.githubusercontent.com/voc/{c3}C3_schedule/master/everything.schedule.json",
-                text=json.dumps(fahrplan_data),
-            )
-        for rc3 in ["rC3", "rC3_21"]:
-            json_file = data_dir / f"{rc3.lower()}.json"
-            rc3_data = json.load(open(json_file, "r"))
-            m.get(
-                f"https://data.c3voc.de/{rc3.lower()}/everything.schedule.json",
-                text=json.dumps(rc3_data),
-            )
-        yield m
+def mock_schedule_data(tmp_path, monkeypatch):
+    """Point Fahrplan.DATA_DIR at a tmp dir populated with test JSON files."""
+    import shutil
+    for src in data_dir.glob("*.json"):
+        # Map test filenames (e.g. 32.json) to expected names (e.g. 32c3.json)
+        name = src.stem
+        if name.isdigit():
+            dest_name = f"{name}c3.json"
+        else:
+            dest_name = f"{name}.json"
+        shutil.copy(src, tmp_path / dest_name)
+
+    import pyfahrplan.lib
+    monkeypatch.setattr(pyfahrplan.lib, "DATA_DIR", tmp_path)
+    return tmp_path
 
 
 @pytest.fixture

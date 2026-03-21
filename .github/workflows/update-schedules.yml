@@ -1,0 +1,40 @@
+name: Update Schedules
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # every Monday at 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download schedules
+        run: |
+          mkdir -p pyfahrplan/data
+          for c3 in 32 33 34 35 36; do
+            curl -sfL -o "pyfahrplan/data/${c3}c3.json" \
+              "https://raw.githubusercontent.com/voc/${c3}C3_schedule/master/everything.schedule.json" \
+              || echo "::warning::Failed to download ${c3}C3 schedule"
+          done
+          curl -sfL -o "pyfahrplan/data/rc3.json" \
+            "https://data.c3voc.de/rC3/everything.schedule.json" \
+            || echo "::warning::Failed to download rC3 schedule"
+          curl -sfL -o "pyfahrplan/data/rc3_21.json" \
+            "https://data.c3voc.de/rC3_21/everything.schedule.json" \
+            || echo "::warning::Failed to download rC3_21 schedule"
+
+      - name: Create PR if schedules changed
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "Update conference schedule data"
+          title: "Update conference schedule data"
+          body: "Automated weekly update of CCC conference schedule JSON files."
+          branch: automated/update-schedules
+          delete-branch: true
