@@ -51,9 +51,9 @@ class TalkTable(Widget):
         self._talks = talks
         table = self.query_one(DataTable)
         table.clear()
-        for talk in talks:
+        for idx, talk in enumerate(talks):
             row = [str(talk.get(field, "")) for _, field in COLUMNS]
-            table.add_row(*row, key=talk.get("talk_guid", str(talk.get("talk_id", ""))))
+            table.add_row(*row, key=str(idx))
 
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected) -> None:
         """Sort by clicked column header."""
@@ -82,12 +82,12 @@ class TalkTable(Widget):
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         """Emit TalkSelected when a row is activated."""
-        row_key = str(event.row_key.value)
-        for talk in self._talks:
-            guid = talk.get("talk_guid", str(talk.get("talk_id", "")))
-            if guid == row_key:
-                self.post_message(self.TalkSelected(talk))
-                break
+        try:
+            idx = int(event.row_key.value)
+        except (ValueError, TypeError):
+            return
+        if 0 <= idx < len(self._talks):
+            self.post_message(self.TalkSelected(self._talks[idx]))
 
     @property
     def talk_count(self) -> int:
