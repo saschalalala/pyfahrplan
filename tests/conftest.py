@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from dateutil.parser import parse
 
 from tests.data.test_data import test_flat_talks
 
@@ -68,6 +69,13 @@ def make_talk():
     def _make(**overrides):
         talk = dict(defaults)
         talk.update(overrides)
+        # Compute pre-parsed time fields
+        from pyfahrplan.lib import _parse_duration
+        start_parsed = parse(talk["talk_start"])
+        duration_td = _parse_duration(talk["talk_duration"])
+        talk["_start_parsed"] = start_parsed
+        talk["_start_end_parsed"] = start_parsed + duration_td
+        talk["_date_end_parsed"] = parse(talk["talk_date"]) + duration_td
         return talk
 
     return _make

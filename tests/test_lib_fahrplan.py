@@ -39,6 +39,7 @@ def test_flatten_produces_expected_fields(mock_schedule_data):
         "conference_title", "conference_acronym", "day", "room", "title",
         "talk_guid", "talk_id", "talk_start", "talk_date", "talk_duration",
         "talk_description", "talk_abstract", "track", "speakers",
+        "_start_parsed", "_start_end_parsed", "_date_end_parsed",
     }
     for plan in fahrplan.flat_plans:
         assert set(plan.keys()) == expected_keys

@@ -25,6 +25,7 @@ class FilterBar(Widget):
     def __init__(self, conferences: list[str] | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
         self._conferences = conferences or []
+        self._debounce_timer = None
 
     def compose(self) -> ComposeResult:
         conf_options = [("All conferences", "all")] + [
@@ -82,4 +83,12 @@ class FilterBar(Widget):
         self._emit_changed()
 
     def _emit_changed(self) -> None:
+        if self._debounce_timer is not None:
+            self._debounce_timer.stop()
+        self._debounce_timer = self.set_timer(
+            0.15, self._do_emit_changed
+        )
+
+    def _do_emit_changed(self) -> None:
+        self._debounce_timer = None
         self.post_message(self.Changed(self.get_filters()))

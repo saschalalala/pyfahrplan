@@ -9,6 +9,14 @@ from pyfahrplan.schedules import SCHEDULE_SOURCES
 DATA_DIR = Path(__file__).parent / "data"
 
 
+def _parse_duration(duration_str: str) -> dt.timedelta:
+    """Parse a duration string like '1:15' or '25:00' into a timedelta."""
+    parts = duration_str.split(":")
+    hours = int(parts[0])
+    minutes = int(parts[1]) if len(parts) > 1 else 0
+    return dt.timedelta(hours=hours, minutes=minutes)
+
+
 class Fahrplan:
     def __init__(self):
         self.fahrplans = []
@@ -37,6 +45,9 @@ class Fahrplan:
             for day in schedule["conference"]["days"]:
                 for room_name, room in day["rooms"].items():
                     for talk in room:
+                        start_parsed = parse(talk["start"])
+                        duration_td = _parse_duration(talk["duration"])
+                        date_parsed = parse(talk["date"])
                         current_talk = {
                             "conference_title": schedule["conference"]["title"],
                             "conference_acronym": schedule["conference"]["acronym"],
@@ -62,6 +73,9 @@ class Fahrplan:
                                     for person in talk.get("persons", [])
                                 ]
                             ),
+                            "_start_parsed": start_parsed,
+                            "_start_end_parsed": start_parsed + duration_td,
+                            "_date_end_parsed": date_parsed + duration_td,
                         }
                         self.flat_plans.append(current_talk)
 
@@ -72,9 +86,10 @@ class Fahrplan:
 
 def is_talk_in_timerange(talk: dict, start: str) -> bool:
     start_time = parse(start)
-    talk_start = parse(talk["talk_start"])
-    duration = parse(talk["talk_duration"])
-    talk_end = talk_start + dt.timedelta(hours=duration.hour, minutes=duration.minute)
+    talk_start = talk.get("_start_parsed") or parse(talk["talk_start"])
+    talk_end = talk.get("_start_end_parsed")
+    if talk_end is None:
+        talk_end = talk_start + _parse_duration(talk["talk_duration"])
     current_hour_end = start_time.replace(minute=59)
     current_hour_begin = start_time.replace(minute=0)
     talk_in_timerange = talk_start <= start_time <= talk_end
@@ -83,9 +98,9 @@ def is_talk_in_timerange(talk: dict, start: str) -> bool:
 
 
 def is_talk_in_past(talk: dict, now: dt.datetime) -> bool:
-    talk_start_datetime = parse(talk["talk_date"])
-    duration = parse(talk["talk_duration"])
-    end = talk_start_datetime + dt.timedelta(hours=duration.hour, minutes=duration.minute)
+    end = talk.get("_date_end_parsed")
+    if end is None:
+        end = parse(talk["talk_date"]) + _parse_duration(talk["talk_duration"])
     return now > end
 
 
