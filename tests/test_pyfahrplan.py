@@ -6,7 +6,7 @@ import os
 import requests_mock
 
 from pyfahrplan import __version__
-from pyfahrplan.lib import Fahrplan, filter_talk
+from pyfahrplan.lib import Fahrplan, filter_talk, filter_talks, sort_talks
 from .data.test_data import test_flat_talks
 
 script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -45,6 +45,15 @@ def test_version():
 def test_fahrplan_initialization():
     fahrplan = Fahrplan()
     assert len(fahrplan.flat_plans) > 0
+
+
+@mock_requests
+def test_fahrplan_get_conference_acronyms():
+    fahrplan = Fahrplan()
+    acronyms = fahrplan.get_conference_acronyms()
+    assert "32c3" in acronyms
+    assert "36c3" in acronyms
+    assert len(acronyms) > 0
 
 
 def test_conference_filter():
@@ -87,3 +96,29 @@ def test_filter_past_filter():
     filtered_talk = filter_talk(test_flat_talks[0], conference="32c3", filter_past=False)
     filtered_talk_2 = filter_talk(test_flat_talks[0], conference="32c3", filter_past=True)
     assert filtered_talk is True and filtered_talk_2 is False
+
+
+def test_filter_talks():
+    results = filter_talks(test_flat_talks, conference="32c3")
+    assert len(results) == 1
+    assert results[0]["conference_acronym"] == "32c3"
+
+
+def test_filter_talks_all():
+    results = filter_talks(test_flat_talks, conference="all")
+    assert len(results) == len(test_flat_talks)
+
+
+def test_sort_talks():
+    sorted_by_day = sort_talks(test_flat_talks, sort_key="day")
+    assert sorted_by_day[0]["day"] <= sorted_by_day[-1]["day"]
+
+
+def test_sort_talks_reverse():
+    sorted_rev = sort_talks(test_flat_talks, sort_key="day", reverse=True)
+    assert sorted_rev[0]["day"] >= sorted_rev[-1]["day"]
+
+
+def test_sort_talks_none():
+    result = sort_talks(test_flat_talks, sort_key=None)
+    assert result == test_flat_talks

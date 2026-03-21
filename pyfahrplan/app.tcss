@@ -1,0 +1,75 @@
+/* Main loading screen */
+#loading-message {
+    text-align: center;
+    margin-top: 2;
+    text-style: bold;
+}
+
+LoadingIndicator {
+    height: 3;
+}
+
+/* Filter bar */
+FilterBar {
+    background: $surface;
+    border-bottom: solid $primary;
+    padding: 0 1;
+    height: auto;
+}
+
+#filter-container {
+    height: auto;
+}
+
+.filter-row {
+    height: 3;
+    align: left middle;
+}
+
+.filter-label {
+    width: 12;
+    text-style: bold;
+    padding: 0 1;
+    content-align: right middle;
+}
+
+FilterBar Input {
+    width: 1fr;
+    margin: 0 1;
+}
+
+FilterBar Select {
+    width: 1fr;
+    margin: 0 1;
+}
+
+FilterBar Switch {
+    margin: 0 1;
+}
+
+/* Status bar */
+#status-bar {
+    height: 1;
+    background: $primary;
+    color: $text;
+    text-style: bold;
+    padding: 0 1;
+}
+
+/* Talk table */
+TalkTable {
+    height: 1fr;
+}
+
+#talks-table {
+    height: 1fr;
+}
+
+/* Detail screen */
+#detail-scroll {
+    padding: 1 2;
+}
+
+#detail-content {
+    padding: 1 2;
+}

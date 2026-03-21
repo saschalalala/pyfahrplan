@@ -7,8 +7,6 @@ import sys
 
 import requests
 import requests_cache
-from rich.console import Console
-from rich.table import Table
 
 from pyfahrplan.config import config_defaults as cli_defaults, Colour
 
@@ -31,6 +29,7 @@ class Fahrplan:
         self.fahrplans = []
         self.flat_plans = []
         self.update_cache = update_cache
+        self.errors = []
         self._get_fahrplans()
         self.flatten_fahrplans()
 
@@ -42,15 +41,11 @@ class Fahrplan:
             try:
                 self.fahrplans.append(requests.get(url).json()["schedule"])
             except JSONDecodeError as e:
-                print(
-                    f"{Colour.FAIL}Problem downloading the Fahrplan {url}. Check your internet connection.{Colour.ENDC}"  # noqa: E501
+                self.errors.append(
+                    f"Problem downloading the Fahrplan {url}. Check your internet connection. {e}"
                 )
-                print(e)
         if not self.fahrplans:
-            print(
-                f"{Colour.FAIL}Fahrplan empty. Something is wrong with your urls. Exiting.{Colour.ENDC}"  # noqa: E501
-            )
-            sys.exit()
+            self.errors.append("Fahrplan empty. Something is wrong with your urls.")
 
     def flatten_fahrplans(self):
         self.flat_plans = []
@@ -86,6 +81,10 @@ class Fahrplan:
                         }
                         self.flat_plans.append(current_talk)
 
+    def get_conference_acronyms(self):
+        """Return sorted list of unique conference acronyms."""
+        return sorted(set(t["conference_acronym"] for t in self.flat_plans))
+
 
 def is_talk_in_timerange(talk: dict, start: str) -> bool:
     start_time = parse(start)
@@ -116,7 +115,7 @@ def filter_talk(
     room: str = cli_defaults["room"],
     conference: str = cli_defaults["conference"],
     filter_past: bool = cli_defaults["no_past"],
-    now: dt.datetime = dt.datetime.now().astimezone(),  # evaluated at function definition time, this is fine
+    now: dt.datetime = dt.datetime.now().astimezone(),
 ) -> bool:
     """
     Some simple filter rules as functions
@@ -149,62 +148,13 @@ def filter_talk(
     )
 
 
-def print_formatted_talks(
-    talks: list,
-    show_abstract: bool,
-    show_description: bool,
-    sort_by: str,
-    reverse: bool
-) -> None:
-    console = Console()
-    header = [
-        "Conference",
-        "Day",
-        "Talk Start",
-        "Duration",
-        "Room",
-        "Title",
-        "Speaker(s)",
-        "Track",
-    ]
-    fields = [
-        "conference_title",
-        "day",
-        "talk_start",
-        "talk_duration",
-        "room",
-        "title",
-        "speakers",
-        "track",
-    ]
+def filter_talks(talks, **kwargs):
+    """Filter a list of talks and return matching ones."""
+    return [t for t in talks if filter_talk(t, **kwargs)]
 
-    if show_abstract:
-        header.append("Abstract")
-    if show_description:
-        header.append("Description")
-    data = []
 
-    for talk in talks:
-        current_data_point = [str(talk.get(field, "")) for field in fields]
-        if show_abstract:
-            current_data_point.append(talk["talk_abstract"])
-        if show_description:
-            current_data_point.append(talk["talk_description"])
-        # TODO think about coloring every second row (needs theming and config tho)
-        data.append(current_data_point)
-    try:
-        if sort_by is not None:
-            data.sort(key=lambda x: x[fields.index(sort_by)])
-        if reverse:
-            data.reverse()
-        table = Table(
-            title=f"Your conference information for {data[0][0]}",
-            show_lines=True
-        )
-        for column in header:
-            table.add_column(column)
-        for row in data:
-            table.add_row(*row)
-        console.print(table)
-    except (ValueError, IndexError):
-        console.print("No talks in this period.")
+def sort_talks(talks, sort_key=None, reverse=False):
+    """Sort talks by a given key. Returns a new sorted list."""
+    if sort_key is None:
+        return list(talks)
+    return sorted(talks, key=lambda t: str(t.get(sort_key, "")), reverse=reverse)
