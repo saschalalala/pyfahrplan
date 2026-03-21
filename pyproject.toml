@@ -1,34 +1,56 @@
-[tool.poetry]
+[project]
 name = "pyfahrplan"
 version = "1.1.0"
 description = "A CCC Fahrplan TUI"
-authors = ["Sascha <saschalalala@github.com>"]
-license = "MIT"
+authors = [{ name = "Sascha", email = "saschalalala@github.com" }]
+license = { text = "MIT" }
 readme = "README.md"
-repository = "https://github.com/saschalalala/pyfahrplan"
+requires-python = ">=3.11"
 keywords = ["cli", "ccc", "calendar", "console"]
+dependencies = [
+    "textual>=0.40.0",
+    "python-dateutil>=2.8.1",
+]
 
-[tool.poetry.dependencies]
-python = "^3.8"
-textual = ">=0.40.0"
-python-dateutil = "^2.8.1"
-rich = "^10.16.1"
+[project.urls]
+Repository = "https://github.com/saschalalala/pyfahrplan"
 
-[tool.poetry.dev-dependencies]
-pytest = "^6.0"
-poethepoet = "^0.11.0"
-pytest-cov = "^3.0.0"
-coverage = "^6.2"
-black = "^21.12b0"
-tomlkit = "^0.8.0"
+[project.scripts]
+pyfahrplan = "pyfahrplan.app:main"
 
 [build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry.scripts]
-pyfahrplan = 'pyfahrplan.app:main'
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
 
-[tool.poe.tasks]
-test = "pytest tests/"
-coverage = "pytest --cov=pyfahrplan_cli tests/"
+[tool.pixi.dependencies]
+python = ">=3.11"
+
+[tool.pixi.pypi-dependencies]
+pyfahrplan = { path = ".", editable = true }
+
+[tool.pixi.feature.test.dependencies]
+pytest = "*"
+pytest-asyncio = "*"
+pytest-cov = "*"
+
+[tool.pixi.feature.test.tasks]
+test = "pytest tests/ -v"
+coverage = "pytest --cov=pyfahrplan tests/"
+
+[tool.pixi.feature.dev.dependencies]
+black = "*"
+tomlkit = "*"
+
+[tool.pixi.feature.dev.tasks]
+lint = "black --check pyfahrplan/"
+format = "black pyfahrplan/"
+build-db = "python -m pyfahrplan.build_db"
+
+[tool.pixi.environments]
+default = { features = ["test", "dev"], solve-group = "default" }
+test = { features = ["test"], solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }

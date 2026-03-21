@@ -26,7 +26,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install poetry tomlkit
+        run: pip install tomlkit
 
       - name: Bump version
         id: bump
@@ -39,7 +39,7 @@ jobs:
           # Read current version from pyproject.toml
           with open('pyproject.toml') as f:
               doc = tomlkit.load(f)
-          current = doc['tool']['poetry']['version']
+          current = doc['project']['version']
           major, minor, patch = (int(x) for x in current.split('.'))
 
           if bump == 'major':
@@ -52,7 +52,7 @@ jobs:
           new_version = f'{major}.{minor}.{patch}'
 
           # Update pyproject.toml
-          doc['tool']['poetry']['version'] = new_version
+          doc['project']['version'] = new_version
           with open('pyproject.toml', 'w') as f:
               tomlkit.dump(doc, f)
 
