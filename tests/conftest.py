@@ -10,9 +10,10 @@ data_dir = Path(__file__).parent / "data"
 
 @pytest.fixture
 def mock_schedule_data(tmp_path, monkeypatch):
-    """Point Fahrplan.DATA_DIR at a tmp dir populated with test JSON files."""
+    """Build a test SQLite database and point Fahrplan at it."""
     import shutil
     from pyfahrplan.schedules import SCHEDULE_SOURCES
+    from pyfahrplan.build_db import build_db
 
     # Map test data filenames to their expected names
     test_files = {}
@@ -29,8 +30,12 @@ def mock_schedule_data(tmp_path, monkeypatch):
         src = test_files.get(filename, fallback)
         shutil.copy(src, tmp_path / filename)
 
+    # Build the SQLite database
+    db_path = tmp_path / "talks.db"
+    build_db(data_dir=tmp_path, db_path=db_path)
+
     import pyfahrplan.lib
-    monkeypatch.setattr(pyfahrplan.lib, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(pyfahrplan.lib, "DB_PATH", db_path)
     return tmp_path
 
 

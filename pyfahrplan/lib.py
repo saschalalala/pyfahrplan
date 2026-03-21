@@ -1,12 +1,18 @@
 import datetime as dt
 from dateutil.parser import parse
-import json
 from pathlib import Path
+import sqlite3
 
 from pyfahrplan.config import config_defaults as cli_defaults, Colour
-from pyfahrplan.schedules import SCHEDULE_SOURCES
 
-DATA_DIR = Path(__file__).parent / "data"
+DB_PATH = Path(__file__).parent / "data" / "talks.db"
+
+TALK_COLUMNS = [
+    "conference_title", "conference_acronym", "day", "room", "title",
+    "talk_guid", "talk_id", "talk_start", "talk_date", "talk_duration",
+    "talk_description", "talk_abstract", "track", "speakers",
+    "start_parsed", "start_end_parsed", "date_end_parsed",
+]
 
 
 def _parse_duration(duration_str: str) -> dt.timedelta:
@@ -17,67 +23,35 @@ def _parse_duration(duration_str: str) -> dt.timedelta:
     return dt.timedelta(hours=hours, minutes=minutes)
 
 
+def _hydrate_talk(talk: dict) -> dict:
+    """Convert ISO datetime strings from DB into datetime objects."""
+    talk["_start_parsed"] = dt.datetime.fromisoformat(talk.pop("start_parsed"))
+    talk["_start_end_parsed"] = dt.datetime.fromisoformat(talk.pop("start_end_parsed"))
+    talk["_date_end_parsed"] = dt.datetime.fromisoformat(talk.pop("date_end_parsed"))
+    return talk
+
+
 class Fahrplan:
-    def __init__(self):
-        self.fahrplans = []
+    def __init__(self, db_path: Path = None):
         self.flat_plans = []
         self.errors = []
-        self._load_schedules()
-        self.flatten_fahrplans()
+        self._load_from_db(db_path or DB_PATH)
 
-    def _load_schedules(self):
-        self.fahrplans = []
-        for filename in SCHEDULE_SOURCES:
-            path = DATA_DIR / filename
-            try:
-                with open(path) as f:
-                    self.fahrplans.append(json.load(f)["schedule"])
-            except (json.JSONDecodeError, FileNotFoundError, KeyError) as e:
-                self.errors.append(
-                    f"Problem loading schedule {filename}: {e}"
-                )
-        if not self.fahrplans:
-            self.errors.append("No schedules found. Run the update-schedules workflow to download data.")
-
-    def flatten_fahrplans(self):
-        self.flat_plans = []
-        for schedule in self.fahrplans:
-            for day in schedule["conference"]["days"]:
-                for room_name, room in day["rooms"].items():
-                    for talk in room:
-                        start_parsed = parse(talk["start"])
-                        duration_td = _parse_duration(talk["duration"])
-                        date_parsed = parse(talk["date"])
-                        current_talk = {
-                            "conference_title": schedule["conference"]["title"],
-                            "conference_acronym": schedule["conference"]["acronym"],
-                            "day": day["index"],
-                            "room": room_name,
-                            "title": talk["title"],
-                            "talk_guid": talk.get("guid"),
-                            "talk_id": talk["id"],
-                            "talk_start": talk["start"],
-                            "talk_date": talk["date"],
-                            "talk_duration": talk["duration"],
-                            "talk_description": ""
-                            if talk["description"] is None
-                            else talk["description"],
-                            "talk_abstract": "" if talk["abstract"] is None else talk["abstract"],
-                            "track": "" if talk["track"] is None else talk["track"],
-                            "speakers": ", ".join(
-                                [
-                                    person.get(
-                                        "public_name",
-                                        person.get("full_public_name", ""),
-                                    )
-                                    for person in talk.get("persons", [])
-                                ]
-                            ),
-                            "_start_parsed": start_parsed,
-                            "_start_end_parsed": start_parsed + duration_td,
-                            "_date_end_parsed": date_parsed + duration_td,
-                        }
-                        self.flat_plans.append(current_talk)
+    def _load_from_db(self, db_path: Path):
+        if not db_path.exists():
+            self.errors.append(
+                "No talks database found. Run 'python -m pyfahrplan.build_db' "
+                "or the update-schedules workflow to build it."
+            )
+            return
+        try:
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(f"SELECT {', '.join(TALK_COLUMNS)} FROM talks").fetchall()
+            conn.close()
+            self.flat_plans = [_hydrate_talk(dict(row)) for row in rows]
+        except sqlite3.Error as e:
+            self.errors.append(f"Error reading talks database: {e}")
 
     def get_conference_acronyms(self):
         """Return sorted list of unique conference acronyms."""

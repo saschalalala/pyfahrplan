@@ -81,6 +81,11 @@ jobs:
               sys.exit(1)
           "
 
+      - name: Build SQLite database
+        run: |
+          pip install python-dateutil
+          python -m pyfahrplan.build_db
+
       - name: Create PR if schedules changed
         uses: peter-evans/create-pull-request@v6
         with:

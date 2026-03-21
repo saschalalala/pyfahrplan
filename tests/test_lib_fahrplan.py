@@ -1,6 +1,5 @@
 """Tests for the Fahrplan class in pyfahrplan.lib."""
 
-import json
 from pathlib import Path
 
 import pytest
@@ -18,22 +17,14 @@ def test_errors_empty_on_success(mock_schedule_data):
     assert fahrplan.errors == []
 
 
-def test_handles_invalid_json(mock_schedule_data):
-    # Corrupt one file
-    (mock_schedule_data / "32c3.json").write_text("not json")
-    fahrplan = Fahrplan()
-    assert len(fahrplan.errors) > 0
-    assert any("Problem loading" in e for e in fahrplan.errors)
-
-
-def test_all_files_missing_gives_empty_message(tmp_path, monkeypatch):
+def test_missing_db_gives_error(tmp_path, monkeypatch):
     import pyfahrplan.lib
-    monkeypatch.setattr(pyfahrplan.lib, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(pyfahrplan.lib, "DB_PATH", tmp_path / "nonexistent.db")
     fahrplan = Fahrplan()
-    assert any("No schedules found" in e for e in fahrplan.errors)
+    assert any("No talks database found" in e for e in fahrplan.errors)
 
 
-def test_flatten_produces_expected_fields(mock_schedule_data):
+def test_produces_expected_fields(mock_schedule_data):
     fahrplan = Fahrplan()
     expected_keys = {
         "conference_title", "conference_acronym", "day", "room", "title",
