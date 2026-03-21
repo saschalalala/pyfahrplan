@@ -19,16 +19,59 @@ jobs:
         run: |
           mkdir -p pyfahrplan/data
           for c3 in 32 33 34 35 36; do
-            curl -sfL -o "pyfahrplan/data/${c3}c3.json" \
+            curl -sfL -o "pyfahrplan/data/${c3}c3.json.tmp" \
               "https://raw.githubusercontent.com/voc/${c3}C3_schedule/master/everything.schedule.json" \
               || echo "::warning::Failed to download ${c3}C3 schedule"
           done
-          curl -sfL -o "pyfahrplan/data/rc3.json" \
+          curl -sfL -o "pyfahrplan/data/rc3.json.tmp" \
             "https://data.c3voc.de/rC3/everything.schedule.json" \
             || echo "::warning::Failed to download rC3 schedule"
-          curl -sfL -o "pyfahrplan/data/rc3_21.json" \
+          curl -sfL -o "pyfahrplan/data/rc3_21.json.tmp" \
             "https://data.c3voc.de/rC3_21/everything.schedule.json" \
             || echo "::warning::Failed to download rC3_21 schedule"
+
+      - name: Validate and accept downloads
+        run: |
+          python3 -c "
+          import json, sys, os, glob
+
+          def validate(path):
+              with open(path) as f:
+                  data = json.load(f)
+              schedule = data['schedule']
+              conf = schedule['conference']
+              assert isinstance(conf['title'], str), 'missing conference title'
+              assert isinstance(conf['acronym'], str), 'missing conference acronym'
+              days = conf['days']
+              assert isinstance(days, list) and len(days) > 0, 'no days in schedule'
+              for day in days:
+                  assert 'index' in day, 'day missing index'
+                  assert isinstance(day['rooms'], dict), 'day missing rooms'
+                  for room_talks in day['rooms'].values():
+                      for talk in room_talks:
+                          assert 'id' in talk, 'talk missing id'
+                          assert 'title' in talk, 'talk missing title'
+                          assert 'start' in talk, 'talk missing start'
+                          assert 'date' in talk, 'talk missing date'
+                          assert 'duration' in talk, 'talk missing duration'
+
+          ok = 0
+          for tmp in sorted(glob.glob('pyfahrplan/data/*.json.tmp')):
+              dest = tmp.removesuffix('.tmp')
+              name = os.path.basename(dest)
+              try:
+                  validate(tmp)
+                  os.replace(tmp, dest)
+                  ok += 1
+                  print(f'  ✓ {name}')
+              except Exception as e:
+                  os.remove(tmp)
+                  print(f'::warning::{name} failed validation: {e}')
+
+          if ok == 0:
+              print('::error::All schedule downloads failed validation')
+              sys.exit(1)
+          "
 
       - name: Create PR if schedules changed
         uses: peter-evans/create-pull-request@v6
